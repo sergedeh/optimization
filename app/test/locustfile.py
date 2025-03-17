@@ -1,6 +1,7 @@
 from locust import HttpUser, task, between, events
 import subprocess
 import os
+import random
 
 subprocess.run(["python", "app/test/reset_db.py"], check=True)
 subprocess.run(["python", "app/test/setup_test_data.py"], check=True)
@@ -8,17 +9,21 @@ subprocess.run(["python", "app/test/setup_test_data.py"], check=True)
 class SubscriptionTest(HttpUser):
     wait_time = between(1, 3)
 
-    @task(3)
+    @task(5)
     def subscribe_user(self):
-        self.client.post("/subscriptions/subscribe", json={"user_id": 1, "plan_id": 2})
+        user_id = random.randint(1, 1000)
+        plan_id = random.choice([1, 2, 3])
+        self.client.post("/subscriptions/subscribe", json={"user_id": user_id, "plan_id": plan_id})
 
-    @task(1)
-    def cancel_subscription(self):
-        self.client.post("/subscriptions/subscriptions/5/cancel")
+    @task(2)
+    async def cancel_subscription(self):
+        user_id = random.randint(1, 1000)
+        await self.client.post(f"/subscriptions/subscriptions/{user_id}/cancel")
 
-    @task(1)
-    def list_active_subscriptions(self):
-        self.client.get("/subscriptions/subscriptions/5/active")
+    @task(3)
+    async def list_active_subscriptions(self):
+        user_id = random.randint(1, 1000)
+        await self.client.get(f"/subscriptions/subscriptions/{user_id}/active")
 
 @events.quitting.add_listener
 def cleanup(environment, **kwargs):

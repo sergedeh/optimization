@@ -26,9 +26,10 @@ class Subscription(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
-    plan_id = Column(Integer, ForeignKey("plans.id"))
-    status = Column(String, default="active")  # active, expired, canceled
+    plan_id = Column(Integer, ForeignKey("plans.id"), index=True)
+    status = Column(String, default="active", index=True)
     start_date = Column(DateTime, default=datetime.utcnow)
     end_date = Column(DateTime)
     
     user = relationship("User", back_populates="subscriptions")
+    

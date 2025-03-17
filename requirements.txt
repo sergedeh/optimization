@@ -6,3 +6,7 @@ bcrypt
 pyjwt
 python-dotenv
 locust
+py-spy
+line-profiler
+memory_profiler
+

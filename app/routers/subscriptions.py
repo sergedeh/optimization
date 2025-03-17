@@ -47,15 +47,15 @@ def subscribe(request: SubscribeRequest, db: Session = Depends(get_db)):
     return {"message": "Subscription updated"}
 
 @router.post("/subscriptions/{user_id}/cancel")
-def cancel_subscription(user_id: int, db: Session = Depends(get_db)):
-    db.execute(text("UPDATE subscriptions SET status='canceled' WHERE user_id=:user_id AND status='active'"),
+async def cancel_subscription(user_id: int, db: Session = Depends(get_db)):
+    await db.execute(text("UPDATE subscriptions SET status='canceled' WHERE user_id=:user_id AND status='active'"),
                {"user_id": user_id})
     db.commit()
     return {"message": "Subscription canceled"}
 
 @router.get("/subscriptions/{user_id}/active")
-def get_active_subscriptions(user_id: int, db: Session = Depends(get_db)):
-    result = db.execute(text("SELECT * FROM subscriptions WHERE user_id=:user_id AND status='active'"),
+async def get_active_subscriptions(user_id: int, db: Session = Depends(get_db)):
+    result = await db.execute(text("SELECT * FROM subscriptions WHERE user_id=:user_id AND status='active'"),
                       {"user_id": user_id}).fetchall()
     subscriptions = [dict(row._mapping) for row in result]
     return {"subscriptions": subscriptions}
