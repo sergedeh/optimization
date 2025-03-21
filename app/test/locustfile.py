@@ -16,14 +16,14 @@ class SubscriptionTest(HttpUser):
         self.client.post("/subscriptions/subscribe", json={"user_id": user_id, "plan_id": plan_id})
 
     @task(2)
-    async def cancel_subscription(self):
+    def cancel_subscription(self):
         user_id = random.randint(1, 1000)
-        await self.client.post(f"/subscriptions/subscriptions/{user_id}/cancel")
+        self.client.post(f"/subscriptions/subscriptions/{user_id}/cancel")
 
     @task(3)
-    async def list_active_subscriptions(self):
+    def list_active_subscriptions(self):
         user_id = random.randint(1, 1000)
-        await self.client.get(f"/subscriptions/subscriptions/{user_id}/active")
+        self.client.get(f"/subscriptions/subscriptions/{user_id}/active")
 
 @events.quitting.add_listener
 def cleanup(environment, **kwargs):

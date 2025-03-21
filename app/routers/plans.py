@@ -1,40 +1,52 @@
-from fastapi import APIRouter, Depends, HTTPException
+from flask import Blueprint, request, jsonify
 from sqlalchemy.orm import Session
-from app.database import SessionLocal
+from app.database import get_db
 from app.models import Plan
 from pydantic import BaseModel
+from flask_pydantic import validate
+from app.auth import roles_required
 
-router = APIRouter()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+bp = Blueprint("plans", __name__)
 
 class PlanRequest(BaseModel):
     name: str
     price: int
     duration_days: int
 
-@router.post("/plans")
-def create_plan(request: PlanRequest, db: Session = Depends(get_db)):
-    existing_plan = db.query(Plan).filter(Plan.name == request.name).first()
+class PlanResponse(PlanRequest):
+    id: int
+
+@bp.post("/plans")
+@validate()
+@roles_required("admin")
+def create_plan(body: PlanRequest):
+    db = next(get_db())
+    existing_plan = db.query(Plan).filter(Plan.name == body.name).first()
     if existing_plan:
         raise HTTPException(status_code=400, detail="Plan already exists")
 
-    plan = Plan(name=request.name, price=request.price, duration_days=request.duration_days)
+    plan = Plan(name=body.name, price=body.price, duration_days=body.duration_days)
     db.add(plan)
     db.commit()
-    return {"message": "Plan created", "plan": plan}
+    db.refresh(plan)
 
-@router.get("/plans")
-def list_plans(db: Session = Depends(get_db)):
+    plan_response = PlanResponse(
+        id=plan.id,
+        name=plan.name,
+        price=plan.price,
+        duration_days=plan.duration_days
+    )
+    return {"message": "Plan created", "plan": plan_response.model_dump()}
+
+@bp.get("/plans")
+def list_plans():
+    db = next(get_db())
     return db.query(Plan).all()
 
-@router.put("/plans/{plan_id}")
-def update_plan(plan_id: int, name: str, price: int, duration_days: int, db: Session = Depends(get_db)):
+@bp.put("/plans/<int:plan_id>")
+@roles_required("admin")
+def update_plan(plan_id: int, name: str, price: int, duration_days: int):
+    db = next(get_db())
     plan = db.query(Plan).get(plan_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
@@ -45,8 +57,9 @@ def update_plan(plan_id: int, name: str, price: int, duration_days: int, db: Ses
     db.commit()
     return {"message": "Plan updated"}
 
-@router.delete("/plans/{plan_id}")
-def delete_plan(plan_id: int, db: Session = Depends(get_db)):
+@bp.delete("/plans/<int:plan_id>")
+def delete_plan(plan_id: int):
+    db = next(get_db())
     plan = db.query(Plan).get(plan_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")

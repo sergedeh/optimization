@@ -1,9 +1,13 @@
-fastapi
+flask
 uvicorn
 sqlalchemy
+flask_sqlalchemy
+marshmallow
+pydantic
+flask-pydantic
 passlib
 bcrypt
-pyjwt
+flask_jwt_extended
 python-dotenv
 locust
 py-spy

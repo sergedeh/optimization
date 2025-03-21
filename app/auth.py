@@ -1,44 +1,64 @@
-from fastapi import APIRouter, Depends, HTTPException
+from flask import Blueprint, current_app, request, jsonify
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from pydantic import BaseModel
-import jwt
-import os
+from flask_pydantic import validate
+from functools import wraps
 
-from app.database import SessionLocal
+import os
+from flask_jwt_extended import get_jwt,create_access_token, jwt_required, get_jwt_identity, JWTManager
+
+from app.database import get_db
 from app.models import User
 
-SECRET_KEY = os.getenv("JWT_SECRET", "supersecret")
-ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def roles_required(*allowed_roles):
+    def decorator(f):
+        @wraps(f)
+        @jwt_required()
+        def wrapper(*args, **kwargs):
 
-class RegistrationRequest(BaseModel):
+            claims = get_jwt()
+            user_role = claims.get("role")
+
+            if user_role not in allowed_roles:
+                return jsonify({"error": f"Unauthorized, roles allowed: {', '.join(allowed_roles)}"}), 403
+
+            return f(*args, **kwargs)
+
+        return wrapper
+    return decorator
+
+bp = Blueprint("auth", __name__)
+
+class LoginRequest(BaseModel):
     email: str
     password: str
 
-@router.post("/register")
-def register(request: RegistrationRequest, db: Session = Depends(get_db)):
-    print(f"Request: {request}")
-    hashed_password = pwd_context.hash(request.password)
-    user = User(email=request.email, password_hash=hashed_password)
+class RegistrationRequest(LoginRequest):
+    role: str
+
+
+@bp.post("/register")
+@validate()
+def register(body: RegistrationRequest):
+    db = next(get_db())
+    hashed_password = pwd_context.hash(body.password)
+    user = User(email=body.email, password_hash=hashed_password, role= body.role)
     db.add(user)
     db.commit()
     return {"message": "User registered"}
 
-@router.post("/login")
-def login(request: RegistrationRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == request.email).first()
-    if not user or not pwd_context.verify(request.password, user.password_hash):
+@bp.post("/login")
+@validate()
+def login(body: LoginRequest):
+    db = next(get_db())
+    user = db.query(User).filter(User.email == body.email).first()
+    if not user or not pwd_context.verify(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = jwt.encode({"sub": user.email, "exp": datetime.utcnow() + timedelta(hours=1)}, SECRET_KEY, algorithm=ALGORITHM)
-    return {"access_token": token, "token_type": "bearer"}
+    access_token = create_access_token(identity=user.email, additional_claims={"role": user.role})
+
+    return {"access_token": access_token, "token_type": "bearer"}

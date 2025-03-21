@@ -1,14 +1,8 @@
-from fastapi import FastAPI
 from app.database import Base, engine
-from app.routers import subscriptions
-from app.auth import router as auth_router
-from app.routers import plans, users
+from app import create_app
 
 Base.metadata.create_all(bind=engine)
+app = create_app()
 
-app = FastAPI()
-
-app.include_router(auth_router, prefix="/auth")
-app.include_router(subscriptions.router, prefix="/subscriptions")
-app.include_router(plans.router, prefix="/plans")
-app.include_router(users.router, prefix="/users")
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=8000)
