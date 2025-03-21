@@ -1,11 +1,24 @@
-1. build the Dockerfile
-2. Run it from your command line : 
-`docker run -p 8003:8000 optimization:latest`
-The outside port 8003 should be open. On linux you can use ` ufw allow 8003/tcp`
+Installation:
+1. Clone the repo
+2. Run the docker-compose file.
 3. it will start the server and make it available on the port 8003
 4. For Performance checking, we used Locust. you can log into the docker container and start locust using: 
 `locust -f app/test/locustfile.py --host http://127.0.0.1:8000 -u 50 -r 1 --run-time 2mn`
 We are doing the test with 50 simultaneous connections. It is the limit of the current system. You can update those value to fit your system specification.
 
 Design decisions:
-The system was built with fastAPI and SQLite. For performance testing, the original benchmark was 5 simultaneous connexions. To reach close to 50, I mostly worked on the DB. SQLite is a single thread system by default. I used the pooling option to increase its performance. This was trial and error process until I got the value beyond which I did not have any added value. The indexing was also critical as SQLite does not manage indexes as obviously as MySQL and other Relational DB. Those two updates were the key booster of the performance. Since the queries are mostly basic, there was no much opportunity for optimization there. I also looked for ways to improve the performance from the framework and python side. I first introduced async calls to the functions that Locust was showing were having a toll on the performance. This had a small impact. There are two peaks were the response time is around 2000ms. A brute option that I still have on my sleeve is to work on the python Guarbage Collector process but it has not been implemented in this present solution. I avoided using caching systems like Redis as I think it would have been increasing the scope. Since it is a toy problem, I would have also played with messaging/queuing systems but it was looking overkill.
+The system was built with Flask and SQLite. For performance testing, the original benchmark was 5 simultaneous connexions. I used locust to detect the API call using much resources, the cancel_subscription endpoint.
+The self appointed goal was to reach 50 users with a latency of less than 500ms or at most 1000ms. 
+
+SQLite is a single thread system by default. I used the pooling option to increase its performance. This was trial and error process until I got the value beyond which I did not have any added value. The indexing was also critical as SQLite does not manage indexes as obviously as MySQL and other Relational DB. I finally added the SQLite WAL(Write Ahead Logging) mode that also contribute to of DB performance. Since the queries are mostly basic, there was no much opportunity for optimization there. 
+I also looked for ways to improve the performance from the framework and python side. I first introduced async calls to the functions that Locust was showing were having a toll on the performance. The impact was not really worth it. 
+
+I have more performance optimization I would have tried based on past experiences. In this current case they would have been overkill:
+1. to work on the python Guarbage Collector process. 
+2. using caching systems like Redis
+3. using messaging/queuing systems like kafka
+
+Things I would have loved to do:
+1. feature tests were not implemented
+2. CI/CD for both quality check and performance.
+3. using flask based framework or admin template
