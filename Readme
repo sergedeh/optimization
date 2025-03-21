@@ -1,6 +1,9 @@
 Installation:
 1. Clone the repo
 2. Run the docker-compose file.
+Installation:
+1. Clone the repo
+2. Run the docker-compose file.
 3. it will start the server and make it available on the port 8003
 4. For Performance checking, we used Locust. you can log into the docker container and start locust using: 
 `locust -f app/test/locustfile.py --host http://127.0.0.1:8000 -u 50 -r 1 --run-time 2mn`
